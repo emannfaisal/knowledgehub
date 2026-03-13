@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account - AI Knowledge Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Theme Colors */
+        .bg-theme-blue { background-color: #6BA6E5; }
+        .hover\:bg-theme-blue-dark:hover { background-color: #5A9BD5; }
+        .focus\:border-theme-blue:focus { border-color: #6BA6E5; }
+        .text-theme-blue { color: #6BA6E5; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 md:p-8">
+
+    <main class="bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
+
+        <div class="w-full md:w-1/2 bg-indigo-50 flex flex-col items-center justify-center p-8 lg:p-12 relative min-h-[250px] md:min-h-full">
+            
+            <img src="https://placehold.co/800x800/e0e7ff/4f46e5?text=Join+The%0AAI+Hub" 
+                 alt="AI Registration Illustration" 
+                 class="w-full h-full object-contain max-h-[300px] md:max-h-[500px] mix-blend-multiply z-10">
+            
+            <div class="absolute bottom-8 left-0 w-full text-center hidden md:block z-20">
+                 <p class="text-gray-500 text-sm">
+                    Already have an account? 
+                    <a href="{% url 'login' %}" class="text-theme-blue font-bold hover:underline ml-1">Log in</a>
+                 </p>
+            </div>
+        </div>
+
+        <div class="w-full md:w-1/2 p-8 md:p-10 lg:p-12 bg-white flex flex-col justify-center">
+            <div class="max-w-md mx-auto w-full">
+                <h2 class="text-3xl lg:text-4xl font-bold text-gray-900 mb-6">Create Account</h2>
+
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-3 mb-4 rounded-r">
+                        <div class="flex">
+                            <i class="fas fa-exclamation-circle text-red-500 mt-1 mr-2"></i>
+                            <p class="text-sm text-red-700">{{ form.non_field_errors|striptags }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="relative">
+                        <label for="{{ form.username.id_for_label }}" class="sr-only">Username</label>
+                        <span class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-gray-400">
+                            <i class="fas fa-user text-lg"></i>
+                        </span>
+                        <input type="text" 
+                               name="{{ form.username.name }}" 
+                               id="{{ form.username.id_for_label }}" 
+                               value="{{ form.username.value|default_if_none:'' }}"
+                               placeholder="Username"
+                               required
+                               class="w-full pl-10 pr-4 py-3 border-b-2 border-gray-200 focus:border-theme-blue outline-none transition-colors bg-transparent text-gray-800 placeholder-gray-400">
+                        {% if form.username.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.username.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="relative">
+                        <label for="{{ form.email.id_for_label }}" class="sr-only">Email Address</label>
+                        <span class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-gray-400">
+                            <i class="fas fa-envelope text-lg"></i>
+                        </span>
+                        <input type="email" 
+                               name="{{ form.email.name }}" 
+                               id="{{ form.email.id_for_label }}"
+                               value="{{ form.email.value|default_if_none:'' }}" 
+                               placeholder="Email Address"
+                               required
+                               class="w-full pl-10 pr-4 py-3 border-b-2 border-gray-200 focus:border-theme-blue outline-none transition-colors bg-transparent text-gray-800 placeholder-gray-400">
+                        {% if form.email.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="relative">
+                        <label for="{{ form.password1.id_for_label }}" class="sr-only">Password</label>
+                        <span class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-gray-400">
+                            <i class="fas fa-lock text-lg"></i>
+                        </span>
+                        <input type="password" 
+                               name="{{ form.password1.name }}" 
+                               id="{{ form.password1.id_for_label }}"
+                               placeholder="Password"
+                               required
+                               class="w-full pl-10 pr-4 py-3 border-b-2 border-gray-200 focus:border-theme-blue outline-none transition-colors bg-transparent text-gray-800 placeholder-gray-400">
+                        {% if form.password1.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.password1.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="relative">
+                        <label for="{{ form.password2.id_for_label }}" class="sr-only">Confirm Password</label>
+                        <span class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none text-gray-400">
+                            <i class="fas fa-check-circle text-lg"></i>
+                        </span>
+                        <input type="password" 
+                               name="{{ form.password2.name }}" 
+                               id="{{ form.password2.id_for_label }}"
+                               placeholder="Confirm Password"
+                               required
+                               class="w-full pl-10 pr-4 py-3 border-b-2 border-gray-200 focus:border-theme-blue outline-none transition-colors bg-transparent text-gray-800 placeholder-gray-400">
+                        {% if form.password2.errors %}
+                            <p class="text-red-500 text-xs mt-1">{{ form.password2.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" 
+                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-lg font-semibold text-white bg-theme-blue hover:bg-theme-blue-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-theme-blue transition-all shadow-blue-200/50">
+                            Register
+                        </button>
+                    </div>
+                </form>
+
+
+
+                <div class="mt-8 text-center md:hidden">
+                    <p class="text-gray-500 text-sm">
+                        Already have an account? 
+                        <a href="{% url 'login' %}" class="text-theme-blue font-bold hover:underline">Log in</a>
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</body>
+</html>

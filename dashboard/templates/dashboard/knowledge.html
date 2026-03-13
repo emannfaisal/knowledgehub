@@ -1,0 +1,90 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="flex-1 overflow-auto">
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Knowledge Base</h1>
+            <p class="text-gray-600">Organize and manage your documents for AI context</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Folders Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    
+                    <!-- Create Folder -->
+                    <div class="p-6 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Folders</h2>
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                id="folder-name" 
+                                placeholder="Folder name..." 
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                            />
+                            <button 
+                                onclick="createFolder()" 
+                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium"
+                            >
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Folder List -->
+                    <div class="p-4">
+                        <ul id="folder-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <li class="text-gray-400 italic text-sm p-2">Loading folders...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents Section -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    
+                    <!-- Header -->
+                    <div class="p-6 border-b border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-2" id="current-folder-title">Select a folder</h2>
+                        <p class="text-sm text-gray-500" id="folder-description">Choose a folder from the left to view and upload documents</p>
+                    </div>
+
+                    <!-- Upload Area -->
+                    <div id="upload-section" class="p-6 border-b border-gray-100 hidden">
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-indigo-500 hover:bg-indigo-50/30 transition cursor-pointer" id="drop-zone">
+                            <div class="text-center">
+                                <i class="fas fa-cloud-arrow-up text-3xl text-gray-400 mb-3"></i>
+                                <p class="text-sm font-medium text-gray-700 mb-1">Drag documents here or click to browse</p>
+                                <p class="text-xs text-gray-500">Supported: PDF, TXT, DOCX</p>
+                            </div>
+                            <input 
+                                type="file" 
+                                id="document-file"
+                                class="hidden"
+                                accept=".pdf,.txt,.docx"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Documents List -->
+                    <div class="p-6">
+                        <h3 class="font-medium text-gray-900 mb-4">Documents</h3>
+                        <ul id="document-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <li class="text-gray-400 italic text-sm p-2">No documents in this folder</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'dashboard/knowledge.js' %}"></script>
+{% endblock %}

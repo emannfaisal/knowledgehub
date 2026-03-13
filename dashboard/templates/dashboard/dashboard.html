@@ -1,0 +1,440 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+
+<div class="flex flex-col h-[calc(100vh-140px)] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+    <!-- Header -->
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                <i class="fas fa-robot text-lg"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-gray-800">AI Assistant</h3>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span class="text-xs text-gray-500 font-medium">Online</span>
+                </div>
+            </div>
+        </div>
+        
+        <button id="new-chat-btn" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition text-sm font-medium">
+            <i class="fas fa-plus mr-2"></i> New Chat
+        </button>
+    </div>
+
+    <!-- Sessions List -->
+    <div class="px-6 py-3 border-b border-gray-100 bg-white">
+        <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-semibold text-gray-700">Sessions</h4>
+            <span id="sessions-count" class="text-xs text-gray-500">0</span>
+        </div>
+        <div id="sessions-list" class="flex gap-2 overflow-x-auto pb-1"></div>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50" id="chat-container">
+        <div class="flex items-center justify-center h-full text-gray-400">
+            <div class="text-center">
+                <i class="fas fa-comments text-4xl mb-3"></i>
+                <p>Start a new conversation or select an existing one</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Input -->
+    <div class="p-4 bg-white border-t border-gray-100">
+        <div class="relative flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 focus-within:ring-2 focus-within:ring-[#6BA6E5] focus-within:border-transparent transition-all shadow-inner">
+            {% csrf_token %}
+            
+            <textarea 
+                id="message-input"
+                placeholder="Type your message..." 
+                class="w-full bg-transparent border-none focus:ring-0 resize-none py-3 px-2 text-gray-700 placeholder-gray-400 max-h-32 overflow-y-auto"
+                style="min-height: 44px;"
+            ></textarea>
+
+            <button 
+                id="send-btn"
+                type="button" 
+                class="p-3 bg-[#6BA6E5] hover:bg-[#5A9BD5] text-white rounded-lg shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        <div class="text-center mt-2">
+            <p class="text-xs text-gray-400">AI can make mistakes. Please verify important information.</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- Hidden modal for loading -->
+<div id="loading-modal" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="animate-spin">
+            <i class="fas fa-spinner text-indigo-600 text-3xl"></i>
+        </div>
+        <p class="text-gray-600 mt-3 text-sm">Thinking...</p>
+    </div>
+</div>
+
+<script>
+    // Load marked.js FIRST before using it
+    if (!window.marked) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        script.onload = () => console.log('marked.js loaded');
+        document.head.appendChild(script);
+    }
+
+    let currentSessionId = null;
+    let sessionsCache = [];
+
+    // Get CSRF token
+    function getCSRFToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!token) {
+            console.error('CSRF token not found');
+            return null;
+        }
+        return token.value;
+    }
+
+    // Create new chat session
+    document.getElementById('new-chat-btn').addEventListener('click', async () => {
+        try {
+            const csrfToken = getCSRFToken();
+            const response = await fetch('/chat/sessions/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            currentSessionId = data.id;
+            console.log('Chat session created:', currentSessionId);
+            await loadSessions(currentSessionId);
+            clearChat();
+        } catch (error) {
+            console.error('Error creating session:', error);
+            alert('Error creating session: ' + error.message);
+        }
+    });
+
+    function formatSessionTime(createdAt) {
+        const date = new Date(createdAt);
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function renderSessions(sessions) {
+        sessionsCache = sessions;
+        const list = document.getElementById('sessions-list');
+        const count = document.getElementById('sessions-count');
+        count.textContent = String(sessions.length);
+
+        if (!sessions.length) {
+            list.innerHTML = '<p class="text-xs text-gray-400">No sessions yet. Click New Chat.</p>';
+            return;
+        }
+
+        list.innerHTML = sessions.map((session, index) => {
+            const activeClasses = currentSessionId === session.id
+                ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100';
+
+            return `
+                <div class="shrink-0 flex items-center gap-1">
+                    <button
+                        type="button"
+                        data-session-id="${session.id}"
+                        class="session-btn px-3 py-2 rounded-lg border text-xs font-medium transition ${activeClasses}"
+                    >
+                        Session ${sessions.length - index}<br>
+                        <span class="font-normal">${formatSessionTime(session.created_at)}</span>
+                    </button>
+                    <button
+                        type="button"
+                        title="Delete session"
+                        data-session-id="${session.id}"
+                        class="session-delete-btn w-8 h-8 rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 transition"
+                    >
+                        <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        document.querySelectorAll('.session-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const sessionId = btn.getAttribute('data-session-id');
+                loadSession(sessionId);
+            });
+        });
+
+        document.querySelectorAll('.session-delete-btn').forEach((btn) => {
+            btn.addEventListener('click', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const sessionId = btn.getAttribute('data-session-id');
+                await deleteSession(sessionId);
+            });
+        });
+    }
+
+    async function deleteSession(sessionId) {
+        if (!confirm('Delete this session?')) {
+            return;
+        }
+
+        try {
+            const csrfToken = getCSRFToken();
+            const response = await fetch(`/chat/sessions/${sessionId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            if (currentSessionId === sessionId) {
+                currentSessionId = null;
+                const container = document.getElementById('chat-container');
+                container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><div class="text-center"><i class="fas fa-comments text-4xl mb-3"></i><p>Start a new conversation or select an existing one</p></div></div>';
+            }
+
+            await loadSessions();
+        } catch (error) {
+            console.error('Error deleting session:', error);
+            alert('Failed to delete session.');
+        }
+    }
+
+    async function loadSessions(preferredSessionId = null) {
+        try {
+            const response = await fetch('/chat/sessions/');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            const sessions = data.sessions || [];
+
+            if (preferredSessionId && sessions.some(s => s.id === preferredSessionId)) {
+                currentSessionId = preferredSessionId;
+            } else if (currentSessionId && sessions.some(s => s.id === currentSessionId)) {
+                // keep selected session
+            } else {
+                currentSessionId = sessions.length ? sessions[0].id : null;
+            }
+
+            renderSessions(sessions);
+
+            if (currentSessionId) {
+                await loadSession(currentSessionId, true);
+            }
+        } catch (error) {
+            console.error('Error loading sessions:', error);
+            document.getElementById('sessions-list').innerHTML = '<p class="text-xs text-red-400">Failed to load sessions.</p>';
+        }
+    }
+
+    async function loadSession(sessionId, skipRender = false) {
+        try {
+            const response = await fetch(`/chat/sessions/${sessionId}/`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            currentSessionId = data.id;
+
+            if (!skipRender) {
+                renderSessions(sessionsCache);
+            } else {
+                renderSessions(sessionsCache);
+            }
+
+            const container = document.getElementById('chat-container');
+            container.innerHTML = '';
+
+            if (!data.messages || data.messages.length === 0) {
+                clearChat();
+                return;
+            }
+
+            data.messages.forEach((msg) => {
+                addMessage(msg.role, msg.content);
+            });
+        } catch (error) {
+            console.error('Error loading session detail:', error);
+            alert('Failed to load session details.');
+        }
+    }
+
+    // Clear chat container
+    function clearChat() {
+        const container = document.getElementById('chat-container');
+        container.innerHTML = '<div class="text-center text-gray-400"><p>New chat started. Send a message to begin.</p></div>';
+        document.getElementById('message-input').value = '';
+        document.getElementById('message-input').focus();
+    }
+
+    // Format time
+    function formatTime(date) {
+        return new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Add message to chat
+    function addMessage(role, content, sources = []) {
+        const container = document.getElementById('chat-container');
+        
+        // Clear empty state if exists
+        if (container.children.length === 1 && container.children[0].textContent.includes('Start a new')) {
+            container.innerHTML = '';
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = role === 'user' ? 'flex gap-4 flex-row-reverse' : 'flex gap-4';
+        
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = role === 'user' 
+            ? 'w-8 h-8 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center text-gray-600 mt-1'
+            : 'w-8 h-8 rounded-full bg-indigo-100 flex-shrink-0 flex items-center justify-center text-indigo-600 mt-1';
+        avatarDiv.innerHTML = role === 'user' 
+            ? '<i class="fas fa-user text-sm"></i>'
+            : '<i class="fas fa-robot text-sm"></i>';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'flex flex-col gap-1 ' + (role === 'user' ? 'items-end max-w-[80%]' : 'max-w-[80%]');
+        
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'text-xs text-gray-500 ' + (role === 'user' ? 'mr-1' : 'ml-1');
+        timeSpan.textContent = (role === 'user' ? 'You' : 'AI Assistant') + ' • ' + formatTime(new Date());
+
+        const messageBox = document.createElement('div');
+        messageBox.className = role === 'user'
+            ? 'bg-[#6BA6E5] p-4 rounded-2xl rounded-tr-none text-white shadow-md'
+            : 'bg-white border border-gray-200 p-4 rounded-2xl rounded-tl-none text-gray-700 shadow-sm';
+        
+        // Use marked if available, otherwise plain text
+        if (window.marked && role === 'assistant') {
+            try {
+                messageBox.innerHTML = window.marked(content);
+            } catch (e) {
+                console.warn('marked.js error, using plain text:', e);
+                messageBox.textContent = content;
+            }
+        } else {
+            messageBox.textContent = content;
+        }
+
+        contentDiv.appendChild(timeSpan);
+        contentDiv.appendChild(messageBox);
+
+        // Add sources for AI messages
+        if (role === 'assistant' && sources.length > 0) {
+            const sourcesDiv = document.createElement('div');
+            sourcesDiv.className = 'mt-3 max-w-[80%] bg-white border border-gray-200 p-3 rounded-lg';
+            sourcesDiv.innerHTML = '<p class="text-xs font-semibold text-gray-600 mb-2">📄 Sources:</p>' +
+                sources.map(s => `<p class="text-xs text-gray-500 truncate">• ${s.document_id || 'Document'}</p>`).join('');
+            contentDiv.appendChild(sourcesDiv);
+        }
+
+        messageDiv.appendChild(avatarDiv);
+        messageDiv.appendChild(contentDiv);
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    // Send message
+    async function sendMessage() {
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
+        
+        if (!message) {
+            console.warn('Empty message');
+            return;
+        }
+        
+        if (!currentSessionId) {
+            alert('Please create a new chat first by clicking "New Chat"');
+            console.warn('No session ID');
+            return;
+        }
+
+        console.log('Sending message:', message, 'Session ID:', currentSessionId);
+
+        // Add user message to chat
+        addMessage('user', message);
+        input.value = '';
+
+        // Show loading
+        document.getElementById('loading-modal').classList.remove('hidden');
+        document.getElementById('send-btn').disabled = true;
+
+        try {
+            const csrfToken = getCSRFToken();
+            const url = `/chat/sessions/${currentSessionId}/message/`;
+            console.log('Fetching:', url);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            });
+
+            console.log('Response status:', response.status);
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('AI Response:', data);
+            addMessage('assistant', data.content, data.sources || []);
+        } catch (error) {
+            console.error('Send message error:', error);
+            addMessage('assistant', '❌ Error: ' + error.message);
+        } finally {
+            document.getElementById('loading-modal').classList.add('hidden');
+            document.getElementById('send-btn').disabled = false;
+            input.focus();
+        }
+    }
+
+    // Send message on Enter key
+    document.getElementById('message-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Send message on button click
+    document.getElementById('send-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('Send button clicked');
+        sendMessage();
+    });
+
+    loadSessions();
+
+    console.log('Dashboard script loaded');
+</script>
+
+{% endblock %}
