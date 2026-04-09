@@ -121,7 +121,7 @@ USE_I18N = True
 USE_TZ = True
 
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY', '')
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3.2')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'phi3')
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
 
 # Static files (CSS, JavaScript, Images)

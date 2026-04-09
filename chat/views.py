@@ -86,6 +86,22 @@ def send_message(request, session_id):
             top_k=3
         )
         
+        # Print top K results to terminal for evaluation
+        print("\n" + "="*80)
+        print(f"TOP K RESULTS FOR QUERY: '{user_message}'")
+        print("="*80)
+        print(f"Total chunks retrieved: {len(context_chunks)}\n")
+
+        for idx, chunk in enumerate(context_chunks, 1):
+            print(f"--- Result #{idx} ---")
+            print(f"Document ID: {chunk.get('document_id', 'Unknown')}")
+            print(f"Folder ID: {chunk.get('folder_id', 'Unknown')}")
+            print(f"Chunk Index: {chunk.get('chunk_index', 'Unknown')}")
+            print(f"Text: {chunk.get('text', '')}")
+            print()
+
+        print("="*80 + "\n")
+        
         # Get conversation memory
         memory = get_conversation_memory(session_id=session_id)
         history = memory.chat_memory.messages
@@ -97,8 +113,13 @@ def send_message(request, session_id):
         ])
         
         # Prepare messages for LLM
-        system_prompt = f"""You are a helpful assistant. Use the provided context to answer questions.
-If the context doesn't contain relevant information, say so clearly.
+        system_prompt = f"""You are a helpful, professional, and highly concise assistant.
+
+Operational Constraints:
+
+Always prioritize information found in the provided context.
+
+If the context does not contain the answer, state "I don't have that specific information based on the provided documents" .Use bolding and bullet points to make information scannable. Avoid long introductory or concluding pleasantries.Limit responses to 3-4 bullet points or two short paragraphs maximum.
 
 Context:
 {context_text}"""
